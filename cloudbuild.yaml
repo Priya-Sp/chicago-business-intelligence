@@ -15,11 +15,11 @@ steps:
 - name: "gcr.io/cloud-builders/docker"
   args: ['build', '-t', 'gcr.io/opportune-eye-347522/go-microservice','.']
 - name: "gcr.io/cloud-builders/docker"
-  args: ['push', 'gcr.io/copportune-eye-347522/go-microservice']
+  args: ['push', 'gcr.io/opportune-eye-347522/go-microservice']
   
-#- name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
- # entrypoint: gcloud
-  #args: ['run', 'deploy','go-microservice', '--image','gcr.io/opportune-eye-347522/go-microservice', '--region','us-central1', '--add-cloudsql-instances', 'opportune-eye-347522:us-central1:mypostgres','--platform','managed', '--port','8080', '--allow-unauthenticated']
+- name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+  entrypoint: gcloud
+  args: ['run', 'deploy','go-microservice', '--image','gcr.io/opportune-eye-347522/go-microservice', '--region','us-central1', '--add-cloudsql-instances', 'opportune-eye-347522:us-central1:mypostgres','--platform','managed', '--port','8080', '--allow-unauthenticated']
 images:
 - gcr.io/opportune-eye-347522/go-microservice
 - gcr.io/opportune-eye-347522/pgadmin
