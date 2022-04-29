@@ -186,16 +186,13 @@ func main() {
 	
 	//Option 4
 	//Database application running on Google Cloud Platform. 
-	db_connection := "user=postgres dbname=chicago_business_intelligence password=1993 host=/cloudsql/opportune-eye-347522:us-central1:mypostgres sslmode=disable port = 5432"
-	
+	db_connection := "user=postgres dbname=chicago_business_intelligence password=1993 host=/cloudsql/opportune-eye-347522:us-central1:mypostgres sslmode=disable port = 5432"	
 
 	db, err := sql.Open("postgres", db_connection)
 	if err != nil {
 		panic(err)
 	}
 	
-	
-
 	// Test the database connection
 	//err = db.Ping()
 	//if err != nil {
@@ -213,9 +210,7 @@ func main() {
 		GetTaxiTrips(db)
 		GetUnemploymentRates(db)
 		GetBuildingPermits(db)
-		//GetCovidDetails(db)
-		//GetCCVIDetails(db)
-
+		
 		port := os.Getenv("PORT")
 		if port == "" {
 			port = "8080"
@@ -831,7 +826,7 @@ func GetBuildingPermits(db *sql.DB) {
 
 	// While doing unit-testing keep the limit value to 500
 	// later you could change it to 1000, 2000, 10,000, etc.
-	var url = "https://data.cityofchicago.org/resource/building-permits.json?$limit=2000"
+	var url = "https://data.cityofchicago.org/resource/building-permits.json?$limit=500"
 
 	res, err := http.Get(url)
 	if err != nil {
