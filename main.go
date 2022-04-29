@@ -62,7 +62,8 @@ import (
 	"net/http"
 	"strconv"
 	"time"
-
+	"os"
+	"log"
 	"database/sql"
 	"encoding/json"
 
@@ -158,26 +159,7 @@ type BuildingPermitsJsonRecords []struct {
 
 }
 
-type CovidJsonRecords []struct {
-	Zip_code                    		string `json:"zip_code"`
-	Week_number       					string `json:"week_number"`
-	Week_start         					string `json:"week_start"`
-	Week_end                    		string `json:"week_end"`
-	Cases_weekly                    	string `json:"cases_weekly"`
-	Cases_cumulative                	string `json:"cases_cumulative"`
-	Case_rate_weekly                	string `json:"case_rate_weekly"`
-	Case_rate_cumulative            	string `json:"case_rate_cumulative"`
-	Percent_tested_positive_weekly  	string `json:"percent_tested_positive_weekly"`
-	Percent_tested_positive_cumulative  string `json:"percent_tested_positive_cumulative"`
-	Population                    		string `json:"population"`
-}
-type CCVIJsonRecords []struct {
-	Geography_type						string `json:"geography_type"`
-	Community_area_or_ZIP_code          string `json:"community_area_or_zip"`
-	Community_name       				string `json:"community_area_name"`
-	CCVI_score         					string `json:"ccvi_score"`
-	CCVI_category         				string `json:"ccvi_category"`
-}
+
 
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -188,17 +170,22 @@ func main() {
 	// Establish connection to Postgres Database
 
 	// OPTION 1 - Postgress application running on localhost
-	//db_connection := "user=postgres dbname=chicago_business_intelligence password=1993 host=localhost sslmode=disable"
+	//db_connection := "user=postgres dbname=chicago_business_intelligence password=root host=localhost sslmode=disable port = 5432"
+	
 
 	// OPTION 2
 	// Docker container for the Postgres microservice - uncomment when deploy with host.docker.internal
-	//db_connection := "user=postgres dbname=chicago_business_intelligence password=1993 host=host.docker.internal sslmode=disable port = 5433"
+	//db_connection := "user=postgres dbname=chicago_business_intelligence password=root host=host.docker.internal sslmode=disable port = 5433"
 
 
 	// OPTION 3
 	// Docker container for the Postgress microservice - uncomment when deploy with IP address of the container
 	// To find your Postgres container IP, use the command with your network name listed in the docker compose file as follows: 
 	// docker network inspect cbi_backend
+	//db_connection := "user=postgres dbname=chicago_business_intelligence password=root host=172.19.0.2 sslmode=disable port = 5433"
+	
+	//Option 4
+	//Database application running on Google Cloud Platform. 
 	db_connection := "user=postgres dbname=chicago_business_intelligence password=1993 host=/cloudsql/opportune-eye-347522:us-central1:mypostgres sslmode=disable port = 5432"
 	
 
@@ -206,13 +193,15 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	
+	
 
 	// Test the database connection
-	err = db.Ping()
-	if err != nil {
-		fmt.Println("Couldn't Connect to database")
-		panic(err)
-	}
+	//err = db.Ping()
+	//if err != nil {
+	//	fmt.Println("Couldn't Connect to database")
+	//	panic(err)
+	//}
 
 	// Spin in a loop and pull data from the city of chicago data portal
 	// Once every hour, day, week, etc.
@@ -221,16 +210,22 @@ func main() {
 	for {
 		// build and fine-tune functions to pull data from different data sources
 		// This is a code snippet to show you how to pull data from different data sources//.
-		//GetTaxiTrips(db)
+		GetTaxiTrips(db)
 		GetUnemploymentRates(db)
 		GetBuildingPermits(db)
-		//GetCovidDetails(db)
-		//GetCCVIDetails(db)
+
+		port := os.Getenv("PORT")
+		if port == "" {
+			port = "8080"
+		}
+		log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", port), nil))
+
 		// Pull the data once a day
 		// You might need to pull Taxi Trips and COVID data on daily basis
 		// but not the unemployment dataset becasue its dataset doesn't change every day
 		time.Sleep(24 * time.Hour)
 	}
+	
 
 }
 
@@ -307,23 +302,10 @@ func GetTaxiTrips(db *sql.DB) {
 	fmt.Println("Received data from SODA REST API for Taxi Trips")
 	
 	body, _ := ioutil.ReadAll(res.Body)
-	var taxi_trips_list_tx TaxiTripsJsonRecords
-	json.Unmarshal(body, &taxi_trips_list_tx)
+	var taxi_trips_list TaxiTripsJsonRecords
+	json.Unmarshal(body, &taxi_trips_list)
 	
-	//Network providers:
-	var url1 = "https://data.cityofchicago.org/resource/m6dm-c72p.json?$limit=500"
-
-	res1, err := http.Get(url1)
-	if err != nil {
-		panic(err)
-	}
-
-	body1, _ := ioutil.ReadAll(res1.Body)
-	var taxi_trips_list_np TaxiTripsJsonRecords
-	json.Unmarshal(body1, &taxi_trips_list_np)
-
-	taxi_trips_list := append(taxi_trips_list_tx, taxi_trips_list_np...)
-
+	
 
 	for i := 0; i < len(taxi_trips_list); i++ {
 		
@@ -847,7 +829,7 @@ func GetBuildingPermits(db *sql.DB) {
 
 	// While doing unit-testing keep the limit value to 500
 	// later you could change it to 1000, 2000, 10,000, etc.
-	var url = "https://data.cityofchicago.org/resource/building-permits.json?$limit=10000"
+	var url = "https://data.cityofchicago.org/resource/building-permits.json?$limit=500"
 
 	res, err := http.Get(url)
 	if err != nil {
@@ -1140,265 +1122,4 @@ func GetBuildingPermits(db *sql.DB) {
 		}
 
 	}
-}
-////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////
-//Sample dataset reviewed:
-//"zip_code":"60602",
-//"week_number":"35",
-//"week_start":"2021-08-29T00:00:00.000",
-//"week_end":"2021-09-04T00:00:00.000",
-//"cases_weekly":"2",
-//"cases_cumulative":"123",
-//"case_rate_weekly":"160.8",
-//"case_rate_cumulative":"9887.5",
-//"tests_weekly":"92",
-//"tests_cumulative":"3970",
-//"test_rate_weekly":"7395.5",
-//"test_rate_cumulative":"319131.8",
-//"percent_tested_positive_weekly":"0.022",
-//"percent_tested_positive_cumulative":"0.035",
-//"deaths_weekly":"0",
-//"deaths_cumulative":"2",
-//"death_rate_weekly":"0",
-//"death_rate_cumulative":"160.8",
-//"population":"1244",
-//"row_id":"60602-2021-35",
-//"zip_code_location":{"type":"Point",
-//						"coordinates":
-//							0 -87.628309
-//							1  41.883136
-//":@computed_region_rpca_8um6":"41",
-//":@computed_region_vrxf_vc4k":"38",
-//":@computed_region_6mkv_f3dw":"14310",
-//":@computed_region_bdys_3d7i":"92",
-//":@computed_region_43wa_7qmu":"36"
-////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////
-func GetCovidDetails(db *sql.DB) {
-	fmt.Println("GetCovidDetails: Collecting Covid related Data")
-
-	drop_table := `drop table if exists covid`
-	_, err := db.Exec(drop_table)
-	if err != nil {
-		panic(err)
-	}
-	
-	create_table := `CREATE TABLE IF NOT EXISTS "covid" (
-						"id"   SERIAL , 
-						"zip_code" VARCHAR(255),
-						"week_number" VARCHAR(255),
-						"week_start" VARCHAR(255), 
-						"week_end" VARCHAR(255),
-						"cases_weekly" DOUBLE PRECISION,
-						"cases_cumulative" DOUBLE PRECISION,
-						"case_rate_weekly" DOUBLE PRECISION,
-						"case_rate_cumulative" DOUBLE PRECISION,
-						"percent_tested_positive_weekly" DOUBLE PRECISION,
-						"percent_tested_positive_cumulative" DOUBLE PRECISION,
-						"population" DOUBLE PRECISION,
-						PRIMARY KEY ("id") 
-					);`
-
-	_, _err := db.Exec(create_table)
-	if _err != nil {
-		panic(_err)
-	}
-
-	var url = "https://data.cityofchicago.org/resource/yhhz-zm2v.json?$limit=500"
-
-	res, err := http.Get(url)
-	if err != nil {
-		panic(err)
-	}
-	
-	body, _ := ioutil.ReadAll(res.Body)
-	var covid_list CovidJsonRecords
-	json.Unmarshal(body, &covid_list)
-
-	for i := 0; i < len(covid_list); i++ {
-		zip_code := covid_list[i].Zip_code
-		if zip_code == "" {
-			continue
-		}
-		
-		week_number := covid_list[i].Week_number
-		if week_number == "" {
-			continue
-		}
-		
-		week_start := covid_list[i].Week_start
-		if week_start == "" {
-			continue
-		}
-		
-		week_end := covid_list[i].Week_end
-		if week_end == "" {
-			continue
-		}
-		
-		cases_weekly := covid_list[i].Cases_weekly
-		if cases_weekly == "" {
-			continue
-		}
-		
-		cases_cumulative := covid_list[i].Cases_cumulative
-		if cases_cumulative == "" {
-			continue
-		}
-		
-		case_rate_weekly := covid_list[i].Case_rate_weekly
-		if case_rate_weekly == "" {
-			continue
-		}
-		
-		case_rate_cumulative := covid_list[i].Case_rate_cumulative
-		if case_rate_cumulative == "" {
-			continue
-		}
-		
-		percent_tested_positive_weekly := covid_list[i].Percent_tested_positive_weekly
-		if percent_tested_positive_weekly == "" {
-			continue
-		}
-		
-		percent_tested_positive_cumulative := covid_list[i].Percent_tested_positive_cumulative
-		if percent_tested_positive_cumulative == "" {
-			continue
-		}
-		
-		population := covid_list[i].Population
-		if population == "" {
-			continue
-		}
-		
-		sql := `INSERT INTO covid ("zip_code", "week_number", "week_start", "week_end", "cases_weekly", "cases_cumulative", "case_rate_weekly", "case_rate_cumulative", "percent_tested_positive_weekly", "percent_tested_positive_cumulative", "population") values($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`
-
-		_, err = db.Exec(
-			sql,
-			zip_code,
-			week_number,
-			week_start,
-			week_end,
-			cases_weekly,
-			cases_cumulative,
-			case_rate_weekly,
-			case_rate_cumulative,
-			percent_tested_positive_weekly,
-			percent_tested_positive_cumulative,
-			population)
-
-		if err != nil {
-			panic(err)
-		}
-	}
-	
-	
-	fmt.Println("GetCovidDetails: Implement Covid Details")
-}
-
-////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////
-//Sample dataset reviewed:
-//"geography_type":"CA",
-//"community_area_or_zip":"70",
-//"community_area_name":"Ashburn",
-//"ccvi_score":"45.1",
-//"ccvi_category":"MEDIUM",
-//"rank_socioeconomic_status":"34",
-//"rank_household_composition":"32",
-//"rank_adults_no_pcp":"28",
-//"rank_cumulative_mobility_ratio":"45",
-//"rank_frontline_essential_workers":"48",
-//"rank_age_65_plus":"29",
-//"rank_comorbid_conditions":"33",
-//"rank_covid_19_incidence_rate":"59",
-//"rank_covid_19_hospital_admission_rate":"66",
-//"rank_covid_19_crude_mortality_rate":"39",
-//"location":{"type":"Point",
-//			"coordinates":
-//					0	-87.7083657043
-//					1	41.7457577128
-//":@computed_region_rpca_8um6":"8",
-//":@computed_region_vrxf_vc4k":"69",
-//":@computed_region_6mkv_f3dw":"4300",
-//":@computed_region_bdys_3d7i":"199",
-//":@computed_region_43wa_7qmu":"30"
-////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////
-func GetCCVIDetails(db *sql.DB) {
-	fmt.Println("GetCCVIDetails: Collecting CCVI related Data")
-	
-	drop_table := `drop table if exists ccvi`
-	_, err := db.Exec(drop_table)
-	if err != nil {
-		panic(err)
-	}
-	
-	create_table := `CREATE TABLE IF NOT EXISTS "ccvi" (
-						"id"   SERIAL , 
-						"geography_type" VARCHAR(255),
-						"community_area_or_zip_code" VARCHAR(255),
-						"community_name" VARCHAR(255),
-						"ccvi_score" DOUBLE PRECISION, 
-						"ccvi_category" VARCHAR(255),
-						PRIMARY KEY ("id") 
-					);`
-
-	_, _err := db.Exec(create_table)
-	if _err != nil {
-		panic(_err)
-	}
-	
-	var url = "https://data.cityofchicago.org/resource/xhc6-88s9.json?$limit=500"
-
-	res, err := http.Get(url)
-	if err != nil {
-		panic(err)
-	}
-	
-	body, _ := ioutil.ReadAll(res.Body)
-	var ccvi_list CCVIJsonRecords
-	json.Unmarshal(body, &ccvi_list)
-
-	for i := 0; i < len(ccvi_list); i++ {
-		geography_type := ccvi_list[i].Geography_type
-		if geography_type == "" {
-			continue
-		}
-		
-		community_area_or_zip_code := ccvi_list[i].Community_area_or_ZIP_code
-		if community_area_or_zip_code == "" {
-			continue
-		}
-		community_name := ccvi_list[i].Community_name
-		if community_name == "" {
-			continue
-		}
-		ccvi_score := ccvi_list[i].CCVI_score
-		if ccvi_score == "" {
-			continue
-		}
-		ccvi_category := ccvi_list[i].CCVI_category
-		if ccvi_category == "" {
-			continue
-		}
-		
-		sql := `INSERT INTO ccvi ("geography_type", "community_area_or_zip_code", "community_name", "ccvi_score", "ccvi_category") values($1, $2, $3, $4, $5)`
-
-		_, err = db.Exec(
-			sql,
-			geography_type,
-			community_area_or_zip_code,
-			community_name,
-			ccvi_score,
-			ccvi_category)
-
-		if err != nil {
-			panic(err)
-		}
-	}
-	
-	
-	fmt.Println("GetCCVIDetails: Implement CCVI details")
 }
