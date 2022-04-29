@@ -1304,8 +1304,7 @@ func GetCovidDetails(db *sql.DB) {
 			panic(err)
 		}
 	}
-	
-	
+		
 	fmt.Println("GetCovidDetails: Implement Covid Details")
 }
 
