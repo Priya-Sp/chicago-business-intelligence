@@ -859,7 +859,7 @@ func GetBuildingPermits(db *sql.DB) {
 
 	// While doing unit-testing keep the limit value to 500
 	// later you could change it to 1000, 2000, 10,000, etc.
-	var url = "https://data.cityofchicago.org/resource/building-permits.json?$limit=2000"
+	var url = "https://data.cityofchicago.org/resource/building-permits.json?$limit=5000"
 
 	res, err := http.Get(url)
 	if err != nil {
